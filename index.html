@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OXV · Flame in Freefall</title>
+<meta name="description" content="OXV: a real-time 3D microgravity flame simulator and a research workstation over NASA combustion experiments. NASA Space Apps Challenge 2026, Flame in Freefall.">
+<meta property="og:title" content="OXV · Flame in Freefall">
+<meta property="og:description" content="A flame you can steer and a research library you can question, built to make fire in microgravity understandable.">
+<meta property="og:image" content="assets/render_poster.jpg">
+<meta name="theme-color" content="#17120E">
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFE4CF; --paper-2:#F8F1E1; --ink:#17120E; --ink-2:#221B15;
+  --fire:#F26A1B; --yellow:#FDB515; --blue:#2B4BD8; --blue-lt:#7FA2FF; --red:#B8231F;
+  --body:#4A4034; --body-dk:#C9BDA6; --mute:#7A6D5B;
+  --display:'Anton','Arial Narrow',Arial,sans-serif;
+  --sans:'DM Sans',Arial,sans-serif;
+  --mono:'DM Mono','Courier New',monospace;
+  --hand:'Caveat','Brush Script MT',cursive;
+  --wrap:min(1240px, 100% - 64px);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.55;-webkit-font-smoothing:antialiased}
+img,video,svg{display:block;max-width:100%}
+a{color:inherit}
+h1,h2,h3{font-family:var(--display);font-weight:400;text-transform:uppercase;letter-spacing:.5px;margin:0}
+h2{font-size:clamp(40px,5.4vw,72px);line-height:1.04;max-width:16ch}
+h3{font-size:clamp(24px,2.2vw,30px);line-height:1.1}
+p{margin:0}
+.wrap{width:var(--wrap);margin-inline:auto}
+
+/* grain over everything */
+.grain{position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.5;mix-blend-mode:multiply}
+.grain.lt{mix-blend-mode:screen;opacity:.18}
+
+/* nav */
+nav{position:sticky;top:0;z-index:40;background:rgba(23,18,14,.92);backdrop-filter:blur(8px);border-bottom:2px solid #2E251D}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:24px}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--paper)}
+.brand img{width:34px;height:30px;object-fit:contain}
+.brand span{font-family:var(--display);font-size:26px;letter-spacing:2px}
+.navlinks{display:flex;gap:26px;list-style:none;margin:0;padding:0}
+.navlinks a{font-family:var(--mono);font-size:14px;letter-spacing:2.5px;text-transform:uppercase;text-decoration:none;color:var(--body-dk)}
+.navlinks a:hover{color:var(--yellow)}
+
+/* sections */
+section{position:relative;padding:120px 0;overflow:hidden}
+.ink{background:var(--ink);color:var(--paper)}
+.fire{background:var(--fire);color:var(--ink)}
+.eyebrow{font-family:var(--mono);font-size:15px;letter-spacing:4px;text-transform:uppercase;color:var(--red);margin-bottom:18px}
+.ink .eyebrow{color:var(--yellow)}
+.fire .eyebrow{color:var(--ink)}
+.lede{font-size:clamp(20px,1.8vw,24px);line-height:1.45;max-width:38ch}
+.txt{color:var(--body)}
+.ink .txt{color:var(--body-dk)}
+.fire .txt{color:#2A1708}
+.mono{font-family:var(--mono);font-size:15px;letter-spacing:1px}
+.hand{font-family:var(--hand);font-weight:700;font-size:clamp(28px,2.6vw,38px);line-height:1.05;color:var(--blue)}
+.ink .hand{color:var(--yellow)}
+.fire .hand{color:var(--ink)}
+.red{color:var(--red)} .ink .red{color:var(--fire)}
+.blue{color:var(--blue)} .ink .blue{color:var(--blue-lt)}
+.yellow{color:var(--yellow)}
+
+/* print-like pieces */
+.card{background:var(--paper-2);border:3px solid var(--ink);border-radius:6px;padding:26px 28px;box-shadow:8px 8px 0 var(--ink);display:flex;flex-direction:column;gap:10px}
+.ink .card{background:var(--ink-2);border-color:var(--paper);box-shadow:8px 8px 0 var(--fire)}
+.card.bshadow{box-shadow:8px 8px 0 var(--blue)}
+.ink .card.bshadow{box-shadow:8px 8px 0 #5B7CFA}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font-family:var(--mono);font-size:14px;letter-spacing:.5px;padding:6px 14px;border:2px solid var(--ink);border-radius:40px;background:var(--paper-2);white-space:nowrap;color:var(--ink)}
+.ink .chip{border-color:var(--paper);background:var(--ink);color:var(--paper)}
+.chip.hot{background:var(--yellow);border-color:var(--ink);color:var(--ink)}
+.photo{background:var(--paper-2);padding:12px 12px 16px;box-shadow:0 18px 50px rgba(0,0,0,.35);position:relative}
+.tape{position:absolute;width:150px;height:36px;background:var(--yellow);opacity:.85;top:-18px;left:calc(50% - 75px)}
+.tape.b{background:#5B7CFA}
+.btn{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:15px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;padding:14px 22px;border:3px solid currentColor;border-radius:6px;transition:transform .15s ease, box-shadow .15s ease}
+.btn.solid{background:var(--yellow);color:var(--ink);border-color:var(--yellow);box-shadow:6px 6px 0 var(--fire)}
+.btn.ghost{color:var(--paper)}
+.btn:hover{transform:translate(-2px,-2px)}
+.btn.solid:hover{box-shadow:8px 8px 0 var(--fire)}
+.fire .btn{color:var(--ink)}
+
+/* hero */
+.hero{padding:90px 0 110px;min-height:min(calc(100vh - 64px), 940px);display:flex;align-items:center}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(120px,19vw,270px);line-height:.92;letter-spacing:4px}
+.hero .sub{font-family:var(--mono);color:var(--yellow);letter-spacing:5px;text-transform:uppercase;font-size:clamp(13px,1.2vw,16px);margin-top:10px}
+.hero .lede{margin-top:34px}
+.hero .ctas{display:flex;flex-wrap:wrap;gap:16px;margin-top:40px}
+.hero .art{position:relative}
+.hero .art svg{width:100%;height:auto;animation:breathe 9s ease-in-out infinite}
+.hero .note{position:absolute;right:4%;bottom:-2%;transform:rotate(-4deg);max-width:300px;text-align:right}
+@keyframes breathe{50%{transform:scale(1.025) rotate(1.2deg)}}
+
+/* problem */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;margin-top:52px}
+.points{display:flex;flex-direction:column;gap:26px}
+.points h3{margin-bottom:6px}
+.gaps{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;margin-top:64px}
+.gaps .card{padding:20px 22px;box-shadow:6px 6px 0 var(--ink)}
+.gaps .card.bshadow{box-shadow:6px 6px 0 var(--blue)}
+.gaps b{font-size:20px}
+.sketch-wrap{position:relative}
+.sketch-wrap .lbl{position:absolute;font-family:var(--hand);font-weight:700;font-size:clamp(22px,2.2vw,32px)}
+
+/* tools */
+.tools{display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;margin-top:52px}
+.tools .card{gap:14px}
+.tools .link{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 18px}
+.tools .card .btn{align-self:flex-start;margin-top:8px;color:var(--ink);border-color:var(--ink)}
+.repo{font-family:var(--mono);font-size:14px;color:var(--mute)}
+
+/* simulator */
+.sim{display:grid;grid-template-columns:1.25fr .75fr;gap:56px;margin-top:52px;align-items:start}
+.video-frame{background:var(--paper-2);padding:14px 14px 12px;box-shadow:0 18px 60px rgba(0,0,0,.55);transform:rotate(-.8deg)}
+.video-frame video{width:100%;aspect-ratio:1600/842;background:#0B0B0D;object-fit:cover}
+.video-frame .cap{font-family:var(--hand);font-weight:700;font-size:28px;color:var(--body);padding-top:6px}
+.knobs{display:flex;flex-direction:column;gap:14px}
+.knob{display:grid;grid-template-columns:120px 1fr 150px;align-items:center;gap:16px}
+.knob .track{position:relative;height:5px;background:var(--paper);border-radius:3px}
+.knob .dot{position:absolute;top:-11px;width:26px;height:26px;border-radius:50%;background:var(--fire);border:3px solid var(--paper);transition:left 1.2s cubic-bezier(.5,0,.2,1)}
+.knob .v{font-size:15px;color:var(--body-dk)}
+.physics{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;margin-top:64px}
+.physics p.t{font-weight:700;font-size:20px;margin-bottom:6px}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);border:3px solid var(--paper);border-radius:6px;background:var(--ink-2);margin-top:56px}
+.strip div{padding:16px 14px;border-left:3px solid var(--paper);display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:16px}
+.strip div:first-child{border-left:none}
+.strip b{font-family:var(--display);font-weight:400;font-size:28px;color:var(--fire)}
+pre{margin:0;background:#0F0C09;color:#EFE4CF;border:2px solid #3A3027;border-radius:6px;padding:18px 20px;font-family:var(--mono);font-size:14px;line-height:1.6;overflow-x:auto}
+pre .c{color:#8F836F}
+.fire pre,.cream pre{background:var(--ink)}
+
+/* workstation */
+.ws{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;margin-top:52px;align-items:start}
+.ws .photo{transform:rotate(-1.2deg)}
+.ws .photo img{width:100%;background:#121418}
+.models{display:flex;flex-direction:column;gap:22px}
+.models .card{padding:20px 24px;box-shadow:6px 6px 0 var(--ink)}
+.models .card.bshadow{box-shadow:6px 6px 0 var(--blue)}
+.weights{display:flex;border:3px solid var(--ink);border-radius:4px;height:46px;margin:4px 0}
+.weights div{display:flex;align-items:center;justify-content:center;border-left:3px solid var(--ink);font-family:var(--mono);font-size:15px}
+.weights div:first-child{border-left:none}
+.views{margin-top:34px}
+
+/* results */
+.res{display:grid;grid-template-columns:1fr 1fr;gap:64px;margin-top:52px;align-items:start}
+.pin{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.pin .photo:nth-child(1){transform:rotate(-2deg)}
+.pin .photo:nth-child(2){transform:rotate(2deg) translateY(18px)}
+.pin img{width:100%}
+.big{font-family:var(--display);font-size:clamp(90px,10vw,130px);line-height:1;color:var(--yellow)}
+.runs{display:flex;gap:28px;align-items:center;margin-top:44px}
+.bars{display:flex;flex-direction:column;gap:22px}
+.bar-row{display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:16px}
+.bar{height:38px;background:var(--fire);border:3px solid var(--paper);border-radius:4px;width:0;transition:width 1.4s cubic-bezier(.3,0,.2,1)}
+.bar.base{height:22px;background:#5A4F42}
+.bar-row .val{font-family:var(--display);font-size:30px}
+.bar-row .val.base{font-family:var(--mono);font-size:15px;color:var(--body-dk)}
+.bar-row .lbl{font-family:var(--mono);font-size:15px}
+.bar-row .lbl.base{color:#8F836F}
+.stats{display:flex;gap:40px;flex-wrap:wrap;margin-top:12px}
+.stats h3{font-size:34px}
+
+/* closing */
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:52px}
+.cols>div{padding:0 36px;border-left:3px solid var(--ink);display:flex;flex-direction:column;gap:18px}
+.cols>div:first-child{padding-left:0;border-left:none}
+.cols p.t{font-weight:700;font-size:19px}
+.refs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.refs a{text-decoration-color:var(--fire);text-underline-offset:3px}
+footer{background:var(--ink);color:var(--body-dk);padding:56px 0}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+footer .mono{color:#8F836F;letter-spacing:2.5px;text-transform:uppercase;font-size:13px}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(18px);transition:opacity .7s ease, transform .7s ease}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.hero .art svg{animation:none}.bar,.knob .dot{transition:none}}
+
+/* responsive */
+@media (max-width:980px){
+  section{padding:90px 0}
+  .navlinks{display:none}
+  .hero .wrap,.split,.sim,.ws,.res,.tools{grid-template-columns:1fr}
+  .hero{min-height:auto}
+  .tools .link{padding:22px 0;transform:rotate(90deg)}
+  .gaps,.physics{grid-template-columns:1fr 1fr}
+  .cols{grid-template-columns:1fr;gap:40px}
+  .cols>div{padding:0;border-left:none}
+  .strip{grid-template-columns:repeat(4,1fr)}
+  .strip div:nth-child(5){border-left:none}
+  .strip div:nth-child(n+5){border-top:3px solid var(--paper)}
+}
+@media (max-width:600px){
+  :root{--wrap:calc(100% - 36px)}
+  .gaps,.physics{grid-template-columns:1fr}
+  .knob{grid-template-columns:96px 1fr;}
+  .knob .v{grid-column:1 / -1;margin-top:-6px}
+  .pin{grid-template-columns:1fr}
+  .strip{grid-template-columns:1fr 1fr}
+  .strip div{border-left:none;border-top:3px solid var(--paper)}
+  .strip div:nth-child(-n+2){border-top:none}
+  .strip div:nth-child(even){border-left:3px solid var(--paper)}
+  .bar-row{grid-template-columns:86px 1fr 56px}
+}
+</style>
+</head>
+<body>
+
+<svg class="grain" width="100%" height="100%" aria-hidden="true"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.15  0 0 0 0 0.1  0.9 0 0 0 -0.38"/></filter><rect width="100%" height="100%" filter="url(#gr)"/></svg>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/logo.png" alt=""><span>OXV</span></a>
+    <ul class="navlinks">
+      <li><a href="#problem">Problem</a></li>
+      <li><a href="#simulator">Simulator</a></li>
+      <li><a href="#workstation">Workstation</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#data">NASA data</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="ink hero" id="top">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow rv">NASA Space Apps Challenge 2026 · Flame in Freefall</p>
+      <h1 class="rv">OXV</h1>
+      <p class="sub rv">Orbital Experimentation Volumetric</p>
+      <p class="lede rv">A flame you can steer and a research library you can question, built to make fire in microgravity understandable.</p>
+      <div class="ctas rv">
+        <a class="btn solid" href="https://github.com/closingexe/oxv">Simulator repo&nbsp;→</a>
+        <a class="btn ghost" href="https://github.com/opening-gem/OXV-Research-Workstation">Workstation repo&nbsp;→</a>
+      </div>
+    </div>
+    <div class="art">
+      <svg viewBox="0 0 900 900" role="img" aria-label="Ink and marker sketch of a spherical blue flame floating in microgravity, circled by orbit lines">
+        <defs>
+          <filter id="wob"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="16"/></filter>
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#3E63F0" stop-opacity="0.55"/><stop offset="0.6" stop-color="#2B4BD8" stop-opacity="0.18"/><stop offset="1" stop-color="#2B4BD8" stop-opacity="0"/></radialGradient>
+        </defs>
+        <circle cx="450" cy="450" r="430" fill="url(#glow)"/>
+        <g filter="url(#wob)" fill="none" stroke-linecap="round">
+          <ellipse cx="450" cy="450" rx="424" ry="120" stroke="#EFE4CF" stroke-width="3" stroke-dasharray="4 22" transform="rotate(-24 450 450)"/>
+          <ellipse cx="450" cy="450" rx="262" ry="254" fill="#2B4BD8"/>
+          <ellipse cx="444" cy="456" rx="205" ry="200" fill="#4C6EF5"/>
+          <ellipse cx="452" cy="448" rx="132" ry="128" fill="#F26A1B"/>
+          <ellipse cx="446" cy="452" rx="74" ry="72" fill="#FDB515"/>
+          <circle cx="450" cy="450" r="22" fill="#17120E"/>
+          <ellipse cx="450" cy="450" rx="268" ry="258" stroke="#EFE4CF" stroke-width="5"/>
+          <ellipse cx="456" cy="444" rx="274" ry="266" stroke="#EFE4CF" stroke-width="2.5" transform="rotate(14 450 450)"/>
+          <path d="M250 330 C300 250 380 205 460 200" stroke="#EFE4CF" stroke-width="4"/>
+          <path d="M232 372 C262 300 300 262 340 236" stroke="#EFE4CF" stroke-width="3"/>
+          <path d="M610 640 C570 690 500 716 440 712" stroke="#17120E" stroke-width="5" opacity="0.6"/>
+          <path d="M640 590 C620 640 580 676 548 692" stroke="#17120E" stroke-width="4" opacity="0.6"/>
+          <path d="M118 150 l0 44 M96 172 l44 0" stroke="#FDB515" stroke-width="5"/>
+          <path d="M780 760 l0 36 M762 778 l36 0" stroke="#FDB515" stroke-width="5"/>
+          <path d="M800 130 l0 26 M787 143 l26 0" stroke="#EFE4CF" stroke-width="4"/>
+          <path d="M80 700 l0 22 M69 711 l22 0" stroke="#EFE4CF" stroke-width="4"/>
+          <circle cx="838" cy="342" r="16" fill="#F26A1B"/>
+        </g>
+      </svg>
+      <p class="hand note">no “up” out here, so it burns as a ball</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section id="problem">
+  <div class="wrap">
+    <p class="eyebrow rv">01 · The problem</p>
+    <h2 class="rv">In orbit, a flame stops behaving like a flame</h2>
+    <div class="split">
+      <div class="sketch-wrap rv">
+        <svg viewBox="0 0 880 500" role="img" aria-label="Two sketches of a candle. On Earth the flame is a tall orange teardrop with hot gas rising. In orbit the flame is a small blue sphere fed by oxygen drifting in from all sides.">
+          <defs><filter id="wob2"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="10"/></filter></defs>
+          <g filter="url(#wob2)" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M30 452 L400 452" stroke="#17120E" stroke-width="5" fill="none"/>
+            <rect x="182" y="340" width="66" height="112" fill="#F8F1E1" stroke="#17120E" stroke-width="5"/>
+            <path d="M215 340 L215 312" stroke="#17120E" stroke-width="5" fill="none"/>
+            <path d="M215 62 C262 140 300 196 286 258 C276 300 246 322 215 322 C184 322 154 300 144 258 C130 196 168 140 215 62 Z" fill="#F26A1B" stroke="#17120E" stroke-width="5"/>
+            <path d="M215 150 C240 196 256 232 248 268 C242 294 230 306 215 306 C200 306 188 294 182 268 C174 232 190 196 215 150 Z" fill="#FDB515"/>
+            <path d="M190 300 C200 316 230 316 240 300 C232 322 198 322 190 300 Z" fill="#2B4BD8"/>
+            <path d="M120 150 C108 120 132 104 120 72 M120 72 l-12 16 M120 72 l14 14" stroke="#B8231F" stroke-width="5" fill="none"/>
+            <path d="M312 150 C300 120 324 104 312 72 M312 72 l-12 16 M312 72 l14 14" stroke="#B8231F" stroke-width="5" fill="none"/>
+            <path d="M480 452 L850 452" stroke="#17120E" stroke-width="5" stroke-dasharray="2 18" fill="none"/>
+            <rect x="632" y="340" width="66" height="112" fill="#F8F1E1" stroke="#17120E" stroke-width="5"/>
+            <path d="M665 340 L665 300" stroke="#17120E" stroke-width="5" fill="none"/>
+            <ellipse cx="665" cy="262" rx="92" ry="88" fill="#4C6EF5" stroke="#17120E" stroke-width="5"/>
+            <ellipse cx="663" cy="266" rx="56" ry="54" fill="#9DB4FF"/>
+            <ellipse cx="665" cy="270" rx="22" ry="20" fill="#FDB515"/>
+            <path d="M535 262 l34 0 M569 262 l-12 -10 M569 262 l-12 10" stroke="#2B4BD8" stroke-width="5" fill="none"/>
+            <path d="M795 262 l-34 0 M761 262 l12 -10 M761 262 l12 10" stroke="#2B4BD8" stroke-width="5" fill="none"/>
+            <path d="M665 126 l0 34 M665 160 l-10 -12 M665 160 l10 -12" stroke="#2B4BD8" stroke-width="5" fill="none"/>
+          </g>
+        </svg>
+        <span class="lbl red" style="left:1%;top:-2%;transform:rotate(-5deg)">hot gas rises</span>
+        <span class="lbl blue" style="right:0;top:0;transform:rotate(4deg);max-width:9ch;text-align:right">oxygen only drifts in</span>
+        <div class="mono" style="display:flex;justify-content:space-around;margin-top:8px"><span>1 g · EARTH</span><span>0 g · ORBIT</span></div>
+      </div>
+      <div class="points">
+        <div class="rv"><h3>No buoyancy, no teardrop</h3><p class="txt">Without rising hot gas, the flame becomes a slow, dim blue sphere fed only by diffusion.</p></div>
+        <div class="rv"><h3>It can burn unseen</h3><p class="txt">ISS droplet tests (FLEX) found cool flames: fuel still reacting after the visible flame is gone.</p></div>
+        <div class="rv"><h3 class="red">It has already cost lives</h3><p class="txt">Apollo 1 (1967) killed three astronauts in a pure-oxygen cabin. The Mir fire (1997) burned for about 90 seconds.</p></div>
+      </div>
+    </div>
+    <p class="mono red rv" style="margin-top:80px">NASA ran the experiments · using them is the hard part</p>
+    <div class="gaps" style="margin-top:18px">
+      <div class="card rv"><b>Fields don’t match</b><p class="txt">PSI records define the same fields inconsistently.</p></div>
+      <div class="card rv"><b>Outcomes unlabelled</b><p class="txt">BASS-II has no outcome column, only free-text notes.</p></div>
+      <div class="card rv"><b>Versions drift</b><p class="txt">BASS-II is on v4, FLEX on v5. Which one was used?</p></div>
+      <div class="card bshadow rv"><b>Numbers you can’t see</b><p class="txt">A table doesn’t show what that fire looks like.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TWO TOOLS ============ -->
+<section class="fire" id="solution">
+  <div class="wrap">
+    <p class="eyebrow rv">02 · Proposed solution</p>
+    <h2 class="rv">OXV pairs a flame you can see with research you can search</h2>
+    <div class="tools">
+      <div class="card rv">
+        <p class="mono red">SEE IT</p>
+        <h3>OXV Simulator</h3>
+        <p class="txt">A real-time 3D flame. Change gravity, fuel, oxygen, pressure or wind and watch how the fire responds.</p>
+        <p class="mono">12 presets · 8 fuels · risk index · AI assistant</p>
+        <div class="chips"><span class="chip">C++17</span><span class="chip">OpenMP</span><span class="chip">OpenGL 3.3</span><span class="chip">Dear ImGui</span></div>
+        <p class="repo">github.com/closingexe/oxv</p>
+        <a class="btn" href="https://github.com/closingexe/oxv">Open repo →</a>
+      </div>
+      <div class="link rv">
+        <svg width="120" height="60" viewBox="0 0 160 70" aria-hidden="true"><g fill="none" stroke="#17120E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 36 C50 26 108 44 146 34"/><path d="M14 36 l22 -14 M14 36 l24 12"/><path d="M146 34 l-24 -12 M146 34 l-22 14"/></g></svg>
+        <p class="hand" style="text-align:center;font-size:30px">same NASA data</p>
+      </div>
+      <div class="card bshadow rv">
+        <p class="mono blue">KNOW IT</p>
+        <h3>OXV Research Workstation</h3>
+        <p class="txt">A dashboard over 16 NASA investigations: classify, rank, compare and question them, with every answer cited.</p>
+        <p class="mono">7 views · 274 flight runs · DOI provenance</p>
+        <div class="chips"><span class="chip">Python 3.11</span><span class="chip">scikit-learn</span><span class="chip">Streamlit</span><span class="chip">Ollama</span></div>
+        <p class="repo">github.com/opening-gem/OXV-Research-Workstation</p>
+        <a class="btn" href="https://github.com/opening-gem/OXV-Research-Workstation">Open repo →</a>
+      </div>
+    </div>
+    <p class="lede rv" style="margin-top:56px;font-weight:700;max-width:none">Simulate a scenario, then look up what actually flew.</p>
+  </div>
+</section>
+
+<!-- ============ SIMULATOR ============ -->
+<section class="ink" id="simulator">
+  <div class="wrap">
+    <p class="eyebrow rv">03 · The simulator</p>
+    <h2 class="rv">A 3D flame, every variable under your hand</h2>
+    <div class="sim">
+      <div class="rv">
+        <div class="video-frame">
+          <video src="assets/render.mp4" poster="assets/render_poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Screen recording of the OXV simulator: a 1 kW methane burner at zero gravity forms a dim dome-shaped flame while the live readouts, graphs and insights panels update"></video>
+          <p class="cap">live run · methane at 0 g</p>
+        </div>
+        <p class="hand" style="margin-top:28px">live readouts, graphs, a risk index and a local AI assistant read the same run</p>
+      </div>
+      <div class="rv">
+        <div class="knobs" id="knobs">
+          <div class="knob"><span class="mono">GRAVITY</span><div class="track"><i class="dot" data-a="4" data-b="60"></i></div><span class="v">0 to 2 g, tilt, jitter</span></div>
+          <div class="knob"><span class="mono">FUEL</span><div class="track"><i class="dot" data-a="45" data-b="20"></i></div><span class="v">8 fuels</span></div>
+          <div class="knob"><span class="mono">OXYGEN</span><div class="track"><i class="dot" data-a="28" data-b="70"></i></div><span class="v">O₂ share</span></div>
+          <div class="knob"><span class="mono">PRESSURE</span><div class="track"><i class="dot" data-a="62" data-b="35"></i></div><span class="v">and temperature</span></div>
+          <div class="knob"><span class="mono">DILUENT</span><div class="track"><i class="dot" data-a="14" data-b="80"></i></div><span class="v">N₂ / CO₂ / He</span></div>
+          <div class="knob"><span class="mono">AIRFLOW</span><div class="track"><i class="dot" data-a="76" data-b="10"></i></div><span class="v">wind, vents</span></div>
+          <div class="knob"><span class="mono">SOURCE</span><div class="track"><i class="dot" data-a="38" data-b="88"></i></div><span class="v">burner, droplet</span></div>
+        </div>
+        <p class="mono yellow" style="margin-top:34px">PRESETS FROM NASA SCENARIOS</p>
+        <div class="chips" style="margin-top:12px">
+          <span class="chip hot">Moon base · 70.3 kPa / 30% O₂</span>
+          <span class="chip">Moon base · 56.5 kPa / 34% O₂</span>
+          <span class="chip">ISS cabin fire</span>
+          <span class="chip">FLEX CO₂ droplet</span>
+          <span class="chip">Apollo pure O₂</span>
+          <span class="chip">Candle, Earth vs orbit</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="physics">
+      <div class="rv"><p class="t red">Mixing-limited chemistry</p><p class="txt">Burn rate is capped by fuel and oxygen mixing, so flames get a real length.</p></div>
+      <div class="rv"><p class="t blue">Radiative extinction, cool flames</p><p class="txt">Big droplets radiate heat away, go dark, and keep reacting cold, as FLEX saw.</p></div>
+      <div class="rv"><p class="t red">Choice of diluent</p><p class="txt">N₂, CO₂ or He change density, heat capacity and radiation.</p></div>
+      <div class="rv"><p class="t yellow">Validated on trends</p><p class="txt">12 of 12 presets pass: gravity, O₂, CO₂, the d² law, wind blow-off.</p></div>
+    </div>
+
+    <div class="strip rv" aria-label="The seven stages of one solver time-step">
+      <div><b>1</b>Boundaries</div><div><b>2</b>Advection</div><div><b>3</b>Buoyancy</div><div><b>4</b>Diffusion</div><div><b>5</b>Ignition</div><div><b>6</b>Combustion</div><div><b>7</b>Projection</div>
+    </div>
+    <p class="mono" style="margin-top:14px;color:#8F836F">one time-step = 7 stages · volume ray-marcher with black-body soot, CH* / C₂* glow, bloom</p>
+
+    <div class="split" style="margin-top:72px;align-items:start">
+      <div class="rv">
+        <p class="mono yellow" style="margin-bottom:14px">BUILD AND RUN · UBUNTU 22.04+</p>
+<pre><span class="c"># clone, install dependencies, build</span>
+git clone https://github.com/closingexe/oxv
+cd oxv
+./scripts/setup_ubuntu.sh
+./build/oxv
+
+<span class="c"># physics checks (exit 0 = all pass)</span>
+./build/oxv_validation</pre>
+      </div>
+      <div class="rv">
+        <p class="mono yellow" style="margin-bottom:14px">OPTIONAL · LOCAL FLAME ASSISTANT</p>
+<pre><span class="c"># runs entirely on your machine</span>
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3.5:4b
+
+<span class="c"># Space play/pause · I ignite · R reset</span>
+<span class="c"># F12 screenshot</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WORKSTATION ============ -->
+<section id="workstation">
+  <div class="wrap">
+    <p class="eyebrow rv">04 · The research workstation</p>
+    <h2 class="rv">16 NASA studies, seven working views</h2>
+    <div class="ws">
+      <div class="rv">
+        <div class="photo"><span class="tape"></span><img src="assets/dashboard.jpg" alt="The OXV Research Workstation overview: 16 catalogue investigations, 12 ISS flight records, 3 persistent DOIs, 8 research categories, and the BASS-II benchmark record" loading="lazy"></div>
+        <div class="chips views">
+          <span class="chip">Overview</span><span class="chip">Explorer</span><span class="chip">Ranking</span><span class="chip">Compare</span><span class="chip">Assistant</span><span class="chip">Provenance</span><span class="chip hot">Telemetry</span>
+        </div>
+        <p class="hand" style="margin-top:28px">runs with no web framework installed, too</p>
+      </div>
+      <div class="models">
+        <p class="mono red rv">Sources → Ingest → Catalog → AI engine → Views</p>
+        <div class="card rv"><h3>1 · Topic classifier</h3><p class="txt">TF-IDF with one-vs-rest logistic regression. Each label shows the terms that earned it.</p></div>
+        <div class="card rv"><h3>2 · Hybrid ranker</h3>
+          <div class="weights" role="img" aria-label="Ranking weights: 35 percent meaning, 25 percent keywords, 20 percent platform and status, 20 percent evidence quality">
+            <div style="width:35%;background:var(--fire)">35</div><div style="width:25%;background:var(--yellow)">25</div><div style="width:20%;background:#9DB4FF">20</div><div style="width:20%;background:var(--paper-2)">20</div>
+          </div>
+          <p class="txt">% meaning · keywords (BM25) · platform and status · evidence quality</p>
+        </div>
+        <div class="card bshadow rv"><h3>3 · Cited assistant</h3><p class="txt">Retrieves evidence, asks a local LLM, then verifies every cited ID. Unverified IDs are removed; offline it falls back to a deterministic summary.</p></div>
+      </div>
+    </div>
+    <div class="split" style="margin-top:72px;align-items:start">
+      <div class="rv">
+        <p class="mono red" style="margin-bottom:14px">QUICKSTART · PYTHON 3.11+</p>
+<pre><span class="c"># install</span>
+git clone https://github.com/opening-gem/OXV-Research-Workstation
+cd OXV-Research-Workstation
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+<span class="c"># build the catalogue, train, open the dashboard</span>
+python main.py ingest
+python main.py classify
+python main.py dashboard</pre>
+      </div>
+      <div class="rv points">
+        <div><h3>Provenance first</h3><p class="txt">Every record keeps its DOI and full dataset-version history, so an answer always says which revision it came from.</p></div>
+        <div><h3>Explainable by design</h3><p class="txt">Small models whose reasoning is shown, chosen over a black box because the subject is crew safety.</p></div>
+        <div><h3>Offline, local, free</h3><p class="txt">No cloud, no accounts, no API keys. Python, Pydantic v2, scikit-learn and Ollama, with 26 unit tests.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section class="ink" id="results">
+  <div class="wrap">
+    <p class="eyebrow rv">05 · Results</p>
+    <h2 class="rv">What the flight data and benchmarks show</h2>
+    <div class="res">
+      <div>
+        <div class="pin rv">
+          <div class="photo"><span class="tape"></span><img src="assets/flex_scatter.jpg" alt="Scatter plot of FLEX runs by oxygen and carbon dioxide percentage: 186 extinction, 61 disruption, 27 completion" loading="lazy"></div>
+          <div class="photo"><span class="tape b"></span><img src="assets/flex_heatmap.jpg" alt="Heat map of the fraction of runs with sustained burning by oxygen and carbon dioxide bin; the highest cell is 50 percent at about 29 percent oxygen and low carbon dioxide" loading="lazy"></div>
+        </div>
+        <div class="runs rv">
+          <p class="big">274</p>
+          <div class="mono" style="display:flex;flex-direction:column;gap:4px">
+            <span>FLEX droplet runs (PSI-69 table)</span>
+            <span>186 extinction · mean O₂ 18.3%</span>
+            <span>61 disruption · mean O₂ 25.0%</span>
+            <span>27 completion · mean O₂ 21.3%</span>
+          </div>
+        </div>
+        <p class="txt rv" style="margin-top:18px">Sustained burning reaches 50% in only one bin: about 29% O₂ with little CO₂ (27 runs). Also loaded: BASS-II, 129 tests.</p>
+      </div>
+      <div class="rv">
+        <p class="mono yellow" style="margin-bottom:22px">OUR MODELS VS BASELINES</p>
+        <div class="bars" id="bars">
+          <div>
+            <div class="bar-row"><span class="lbl">MACRO-F1</span><div><div class="bar" data-w="47.87"></div></div><span class="val">0.48</span></div>
+            <div class="bar-row" style="margin-top:6px"><span class="lbl base">baseline</span><div><div class="bar base" data-w="22"></div></div><span class="val base">0.22</span></div>
+          </div>
+          <div>
+            <div class="bar-row"><span class="lbl">P@5</span><div><div class="bar" data-w="58"></div></div><span class="val">0.58</span></div>
+            <div class="bar-row" style="margin-top:6px"><span class="lbl base">baseline</span><div><div class="bar base" data-w="32"></div></div><span class="val base">0.32</span></div>
+          </div>
+          <div>
+            <div class="bar-row"><span class="lbl">NDCG@5</span><div><div class="bar" data-w="81.72"></div></div><span class="val">0.82</span></div>
+            <div class="bar-row" style="margin-top:6px"><span class="lbl base">baseline</span><div><div class="bar base" data-w="54"></div></div><span class="val base">0.54</span></div>
+          </div>
+        </div>
+        <div class="stats" style="margin-top:40px">
+          <div><h3 class="red">1.00</h3><p class="txt">citation validity</p></div>
+          <div><h3 class="red">1.00</h3><p class="txt">abstention accuracy</p></div>
+          <div><h3 class="blue">12 / 12</h3><p class="txt">simulator presets pass</p></div>
+        </div>
+        <p class="txt" style="margin-top:24px;font-size:16px">Preliminary: 16 investigations, 10 test queries. The 1.00 scores measure the citation filter, not the LLM itself.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CLOSING ============ -->
+<section id="data">
+  <div class="wrap">
+    <p class="eyebrow rv">06 · Feasibility · impact · NASA data</p>
+    <h2 class="rv">Feasible on one desk, useful beyond it</h2>
+    <div class="cols">
+      <div class="rv">
+        <p class="mono red">FEASIBILITY</p>
+        <div><p class="t">One consumer PC</p><p class="txt">i5-12400F, RTX 3050 6 GB, Ubuntu. No cloud, no API keys, works offline.</p></div>
+        <div><p class="t">Open inputs</p><p class="txt">Public NASA PSI data and MIT-licensed code.</p></div>
+        <div><p class="t">Honest limits</p><p class="txt">A reduced-order model: it reproduces trends, not exact numbers. 1 g flames come out short; the catalogue is small (F1 0.48). Next: calibrate against PSI data and scale to 300+ records.</p></div>
+      </div>
+      <div class="rv">
+        <p class="mono red">IMPACT</p>
+        <div><p class="t">Mission designers</p><p class="txt">Try a habitat atmosphere before it is built.</p></div>
+        <div><p class="t">Researchers</p><p class="txt">Find the right experiment, version and DOI in seconds.</p></div>
+        <div><p class="t">Students</p><p class="txt">See why a space flame is a sphere.</p></div>
+        <div><p class="t">On Earth</p><p class="txt">Fire-safety and cleaner-combustion insight.</p></div>
+      </div>
+      <div class="rv">
+        <p class="mono red">NASA DATA AND RESOURCES</p>
+        <ul class="refs txt">
+          <li><a href="https://psi.nasa.gov">NASA Physical Sciences Informatics (PSI)</a></li>
+          <li><a href="https://doi.org/10.60555/4qc4-de67">BASS-II dataset, v4</a></li>
+          <li><a href="https://psi.nasa.gov/physci/repo/data/investigations/PSI-69">FLEX experimental table (PSI-69)</a></li>
+          <li><a href="https://www1.grc.nasa.gov/space/combustion-and-reacting-systems/">NASA Glenn: Combustion and Reacting Systems</a></li>
+          <li><a href="https://www.spaceappschallenge.org/2026/">Space Apps 2026: Flame in Freefall</a></li>
+        </ul>
+        <p class="hand" style="margin-top:12px;transform:rotate(-2deg)">so the next fire up there is one we already understand</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/logo.png" alt="OXV logo"><span>OXV</span></a>
+    <p class="mono">NASA Space Apps Challenge 2026 · Flame in Freefall · MIT License</p>
+    <p class="mono">Team SIC MUNDUS · Shourya Johar &amp; Rishabh Nanda</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // reveal on scroll
+  var els = document.querySelectorAll('.rv');
+  if (reduce || !('IntersectionObserver' in window)) { els.forEach(function(e){e.classList.add('in')}); }
+  else {
+    var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }); }, {threshold:.12});
+    els.forEach(function(e,i){ e.style.transitionDelay = (i%4)*70+'ms'; io.observe(e); });
+  }
+  // benchmark bars grow when seen
+  var bars = document.getElementById('bars');
+  function fill(){ bars.querySelectorAll('.bar').forEach(function(b){ b.style.width = b.dataset.w+'%'; }); }
+  if (reduce || !('IntersectionObserver' in window)) fill();
+  else new IntersectionObserver(function(es,o){ if(es[0].isIntersecting){ fill(); o.disconnect(); } }, {threshold:.3}).observe(bars);
+  // sliders drift between two settings, like someone adjusting a scenario
+  var dots = document.querySelectorAll('#knobs .dot'), flip = false;
+  function place(){ dots.forEach(function(d){ d.style.left = 'calc(' + (flip ? d.dataset.b : d.dataset.a) + '% - 13px)'; }); }
+  place();
+  if (!reduce) setInterval(function(){ flip = !flip; place(); }, 3200);
+})();
+</script>
+</body>
+</html>
